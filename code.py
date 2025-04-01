@@ -24,22 +24,6 @@ class InputType:
     NEW_LINE = "NEW_LINE"
 
 
-def handle_input_action():
-    pass
-
-
-def handle_encoder(encoder, last_position, name):
-    current_position = encoder.position
-    if current_position != last_position:
-        if current_position > last_position:
-            print(f"{name}: Clockwise")
-            mouse.move(wheel=1)
-        else:
-            print(f"{name}: Counterclockwise")
-            mouse.move(wheel=-1)
-    return current_position
-
-
 class Button:
     def __init__(
         self,
@@ -92,7 +76,6 @@ class RotaryEncoder(Button):
         pin_a: tuple[board.Pin, callable],
         pin_b: tuple[board.Pin, callable],
         pin_button: tuple[board.Pin, tuple[InputType, list]],
-        reverse=False,
     ):
         super().__init__(pin_button)
         self.name = name
@@ -100,7 +83,6 @@ class RotaryEncoder(Button):
         self.pin_b = pin_b
         self.encoder = rotaryio.IncrementalEncoder(pin_a[0], pin_b[0])
         self.last_position = self.encoder.position
-        self.reverse = reverse
 
     def handle_encoder(self):
         current_position = self.encoder.position
@@ -120,16 +102,10 @@ class RotaryEncoder(Button):
 
 def main():
     # Initialize your encoders
-    # encoder_1 = rotaryio.IncrementalEncoder(board.GP0, board.GP1)
-    encoder_2 = rotaryio.IncrementalEncoder(board.GP3, board.GP4)
-    encoder_3 = rotaryio.IncrementalEncoder(board.GP12, board.GP13)
-    encoder_4 = rotaryio.IncrementalEncoder(board.GP16, board.GP17)
-
-    # Track positions separately
-    # last_position_1 = encoder_1.position
-    last_position_2 = encoder_2.position
-    last_position_3 = encoder_3.position
-    last_position_4 = encoder_4.position
+    # encoder_1 = board.GP0, board.GP1
+    # encoder_2 = board.GP3, board.GP4
+    # encoder_3 = board.GP12, board.GP13
+    # encoder_4 = board.GP16, board.GP17
 
     encoder = RotaryEncoder(
         "Encoder 1",
@@ -140,11 +116,7 @@ def main():
 
     while True:
         # Call handle_encoder() for each encoder, one after the other
-        # last_position_1 = handle_encoder(encoder_1, last_position_1, "Encoder 1")
         encoder.handle_button_encoder()
-        last_position_2 = handle_encoder(encoder_2, last_position_2, "Encoder 2")
-        last_position_3 = handle_encoder(encoder_3, last_position_3, "Encoder 3")
-        last_position_4 = handle_encoder(encoder_4, last_position_4, "Encoder 4")
 
         # Delay to prevent multiple fast triggers
         time.sleep(0.01)
