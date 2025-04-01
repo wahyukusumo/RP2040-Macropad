@@ -41,9 +41,13 @@ def handle_encoder(encoder, last_position, name):
 
 
 class Button:
-    def __init__(self, pin_button: board.Pin):
+    def __init__(
+        self,
+        pin_button: tuple[board.Pin, tuple[InputType, list]],
+    ):
         # def __init__(self, pin_button: board.Pin):
-        self.button = self.init_button(pin_button)
+        self.pin_button = pin_button
+        self.button = self.init_button(pin_button[0])
         self.button_state = 0
 
     def init_button(self, pin_button: board.Pin):
@@ -52,7 +56,8 @@ class Button:
         button.pull = Pull.UP  # Pull-up resistor enabled
         return button
 
-    def handle_button(self, keymap: tuple):
+    def handle_button(self):
+        keymap = self.pin_button[1]
         if self.button_state == 0:
             if not self.button.value:  # Button pressed
                 try:
@@ -82,23 +87,35 @@ class Button:
 
 class RotaryEncoder(Button):
     def __init__(
-        self, name: str, pin_a: board.Pin, pin_b: board.Pin, pin_button: board.Pin
+        self,
+        name: str,
+        pin_a: tuple[board.Pin, callable],
+        pin_b: tuple[board.Pin, callable],
+        pin_button: tuple[board.Pin, tuple[InputType, list]],
+        reverse=False,
     ):
         super().__init__(pin_button)
         self.name = name
-        self.encoder = rotaryio.IncrementalEncoder(pin_a, pin_b)
+        self.pin_a = pin_a
+        self.pin_b = pin_b
+        self.encoder = rotaryio.IncrementalEncoder(pin_a[0], pin_b[0])
         self.last_position = self.encoder.position
+        self.reverse = reverse
 
     def handle_encoder(self):
         current_position = self.encoder.position
         if current_position != self.last_position:
             if current_position > self.last_position:
                 print(f"{self.name}: Clockwise")
-                mouse.move(wheel=1)
+                self.pin_a[1]()
             else:
                 print(f"{self.name}: Counterclockwise")
-                mouse.move(wheel=-1)
+                self.pin_b[1]()
             self.last_position = current_position
+
+    def handle_button_encoder(self):
+        self.handle_button()
+        self.handle_encoder()
 
 
 def main():
@@ -114,14 +131,17 @@ def main():
     last_position_3 = encoder_3.position
     last_position_4 = encoder_4.position
 
-    encoder = RotaryEncoder("Encoder 1", board.GP0, board.GP1, board.GP5)
-    print(type(encoder.button))
+    encoder = RotaryEncoder(
+        "Encoder 1",
+        pin_a=(board.GP0, lambda: mouse.move(wheel=1)),
+        pin_b=(board.GP1, lambda: mouse.move(wheel=-1)),
+        pin_button=(board.GP5, (InputType.KEY, [Keycode.C])),
+    )
 
     while True:
         # Call handle_encoder() for each encoder, one after the other
         # last_position_1 = handle_encoder(encoder_1, last_position_1, "Encoder 1")
-        encoder.handle_encoder()
-        encoder.handle_button((InputType.KEY, [Keycode.C]))
+        encoder.handle_button_encoder()
         last_position_2 = handle_encoder(encoder_2, last_position_2, "Encoder 2")
         last_position_3 = handle_encoder(encoder_3, last_position_3, "Encoder 3")
         last_position_4 = handle_encoder(encoder_4, last_position_4, "Encoder 4")
