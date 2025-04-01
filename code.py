@@ -10,6 +10,19 @@ from adafruit_hid.consumer_control import ConsumerControl
 from adafruit_hid.consumer_control_code import ConsumerControlCode
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 
+
+def handle_encoder(encoder, last_position, name):
+    current_position = encoder.position
+    if current_position != last_position:
+        if current_position > last_position:
+            print(f"{name}: Clockwise")
+            mouse.move(wheel=1)
+        else:
+            print(f"{name}: Counterclockwise")
+            mouse.move(wheel=-1)
+    return current_position
+
+
 kbd = Keyboard(usb_hid.devices)
 mouse = Mouse(usb_hid.devices)
 cc = ConsumerControl(usb_hid.devices)
@@ -100,37 +113,9 @@ while True:
                 switch_state[button] = 0
 
     # Handle Rotary Encoder 1 (track rotation and send arrow keys)
-    current_position_1 = encoder_1.position
-    if current_position_1 != last_position_1:
-        if current_position_1 > last_position_1:
-            print("Encoder 1: Clockwise")
-            mouse.move(wheel=1)
-        else:
-            print("Encoder 1: Counterclockwise")
-            mouse.move(wheel=-1)
-        last_position_1 = current_position_1
-
-    # Handle Rotary Encoder 2 (track rotation and send volume up/down keys)
-    current_position_2 = encoder_2.position
-    if current_position_2 != last_position_2:
-        if current_position_2 > last_position_2:
-            print("Encoder 2: Clockwise")
-            kbd.send(Keycode.CONTROL, Keycode.RIGHT_BRACKET)
-        else:
-            print("Encoder 2: Counterclockwise")
-            kbd.send(Keycode.CONTROL, Keycode.LEFT_BRACKET)
-        last_position_2 = current_position_2
-
-    # Handle Rotary Encoder 3 (track rotation and send up/down arrow keys)
-    current_position_3 = encoder_3.position
-    if current_position_3 != last_position_3:
-        if current_position_3 > last_position_3:
-            print("Encoder 3: Clockwise")
-            cc.send(ConsumerControlCode.VOLUME_INCREMENT)
-        else:
-            print("Encoder 3: Counterclockwise")
-            cc.send(ConsumerControlCode.VOLUME_DECREMENT)
-        last_position_3 = current_position_3
+    last_position_1 = handle_encoder(encoder_1, last_position_1, "Encoder 1")
+    last_position_2 = handle_encoder(encoder_2, last_position_2, "Encoder 2")
+    last_position_3 = handle_encoder(encoder_3, last_position_3, "Encoder 3")
 
     # Delay to prevent multiple fast triggers
     time.sleep(0.01)
