@@ -15,11 +15,13 @@ mouse = Mouse(usb_hid.devices)
 cc = ConsumerControl(usb_hid.devices)
 layout = KeyboardLayoutUS(kbd)
 
-MEDIA = 1  # this can be for volume, media player, brightness etc.
-KEY = 2  # Keyboard press
-STRING = 3  # Text string
-WRAPPED = 4
-NEW_LINE = "NEW_LINE"
+
+class InputType:
+    MEDIA = 1  # this can be for volume, media player, brightness etc.
+    KEY = 2  # Keyboard press
+    LETTER = 3  # Text string
+    WRAPPED = 4
+    NEW_LINE = "NEW_LINE"
 
 
 def handle_input_action():
@@ -52,26 +54,26 @@ class Button:
 
     def handle_button(self, keymap: tuple):
         if self.button_state == 0:
-            if not self.button.value:
+            if not self.button.value:  # Button pressed
                 try:
-                    if keymap[0] == KEY:
+                    if keymap[0] == InputType.KEY:
                         kbd.press(*keymap[1])
-                    elif keymap[0] == STRING:
+                    elif keymap[0] == InputType.LETTER:
                         for letter in keymap[1][0]:
                             layout.write(letter)
-                        if keymap[1][1] == NEW_LINE:
+                        if keymap[1][1] == InputType.NEW_LINE:
                             kbd.press(*[Keycode.RETURN])
                             kbd.release(*[Keycode.RETURN])
-                    else:
+                    elif keymap[0] == InputType.MEDIA:
                         cc.send(keymap[1][0])
                 except ValueError:  # deals with six-key limit
                     pass
                 self.button_state = 1
 
         if self.button_state == 1:
-            if self.button.value:
+            if self.button.value:  # Button released
                 try:
-                    if keymap[0] == KEY:
+                    if keymap[0] == InputType.KEY:
                         kbd.release(*keymap[1])
                 except ValueError:
                     pass
@@ -119,7 +121,7 @@ def main():
         # Call handle_encoder() for each encoder, one after the other
         # last_position_1 = handle_encoder(encoder_1, last_position_1, "Encoder 1")
         encoder.handle_encoder()
-        encoder.handle_button((KEY, [Keycode.C]))
+        encoder.handle_button((InputType.KEY, [Keycode.C]))
         last_position_2 = handle_encoder(encoder_2, last_position_2, "Encoder 2")
         last_position_3 = handle_encoder(encoder_3, last_position_3, "Encoder 3")
         last_position_4 = handle_encoder(encoder_4, last_position_4, "Encoder 4")
