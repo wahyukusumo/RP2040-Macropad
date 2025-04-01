@@ -101,22 +101,41 @@ class RotaryEncoder(Button):
 
 
 def main():
-    # Initialize your encoders
-    # encoder_1 = board.GP0, board.GP1
-    # encoder_2 = board.GP3, board.GP4
-    # encoder_3 = board.GP12, board.GP13
-    # encoder_4 = board.GP16, board.GP17
 
-    encoder = RotaryEncoder(
+    encoder_1 = RotaryEncoder(
         "Encoder 1",
         pin_a=(board.GP0, lambda: mouse.move(wheel=1)),
         pin_b=(board.GP1, lambda: mouse.move(wheel=-1)),
         pin_button=(board.GP5, (InputType.KEY, [Keycode.C])),
     )
 
+    encoder_2 = RotaryEncoder(
+        "Encoder 2",
+        pin_a=(board.GP3, lambda: cc.send(ConsumerControlCode.VOLUME_DECREMENT)),
+        pin_b=(board.GP4, lambda: cc.send(ConsumerControlCode.VOLUME_INCREMENT)),
+        pin_button=(board.GP2, (InputType.KEY, [Keycode.S])),
+    )
+
+    encoder_3 = RotaryEncoder(
+        "Encoder 3",
+        pin_a=(board.GP16, lambda: cc.send(ConsumerControlCode.VOLUME_DECREMENT)),
+        pin_b=(board.GP17, lambda: cc.send(ConsumerControlCode.VOLUME_INCREMENT)),
+        pin_button=(board.GP15, (InputType.KEY, [Keycode.S])),
+    )
+
+    encoder_4 = RotaryEncoder(
+        "Encoder 3",
+        pin_a=(board.GP12, lambda: cc.send(ConsumerControlCode.VOLUME_DECREMENT)),
+        pin_b=(board.GP13, lambda: cc.send(ConsumerControlCode.VOLUME_INCREMENT)),
+        pin_button=(board.GP14ss, (InputType.KEY, [Keycode.S])),
+    )
+
     while True:
         # Call handle_encoder() for each encoder, one after the other
-        encoder.handle_button_encoder()
+        encoder_1.handle_button_encoder()
+        encoder_2.handle_button_encoder()
+        encoder_3.handle_button_encoder()
+        encoder_4.handle_button_encoder()
 
         # Delay to prevent multiple fast triggers
         time.sleep(0.01)
