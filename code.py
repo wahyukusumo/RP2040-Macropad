@@ -16,20 +16,18 @@ cc = ConsumerControl(usb_hid.devices)
 layout = KeyboardLayoutUS(kbd)
 
 
-class InputType:
+class ButtonInputType:
     MEDIA = 1  # this can be for volume, media player, brightness etc.
     KEY = 2  # Keyboard press
     LETTER = 3  # Text string
-    WRAPPED = 4
     NEW_LINE = "NEW_LINE"
 
 
 class Button:
     def __init__(
         self,
-        pin_button: tuple[board.Pin, tuple[InputType, list]],
+        pin_button: tuple[board.Pin, tuple[ButtonInputType, list]],
     ):
-        # def __init__(self, pin_button: board.Pin):
         self.pin_button = pin_button
         self.button = self.init_button(pin_button[0])
         self.button_state = 0
@@ -45,15 +43,15 @@ class Button:
         if self.button_state == 0:
             if not self.button.value:  # Button pressed
                 try:
-                    if keymap[0] == InputType.KEY:
+                    if keymap[0] == ButtonInputType.KEY:
                         kbd.press(*keymap[1])
-                    elif keymap[0] == InputType.LETTER:
+                    elif keymap[0] == ButtonInputType.LETTER:
                         for letter in keymap[1][0]:
                             layout.write(letter)
-                        if keymap[1][1] == InputType.NEW_LINE:
+                        if keymap[1][1] == ButtonInputType.NEW_LINE:
                             kbd.press(*[Keycode.RETURN])
                             kbd.release(*[Keycode.RETURN])
-                    elif keymap[0] == InputType.MEDIA:
+                    elif keymap[0] == ButtonInputType.MEDIA:
                         cc.send(keymap[1][0])
                 except ValueError:  # deals with six-key limit
                     pass
@@ -62,7 +60,7 @@ class Button:
         if self.button_state == 1:
             if self.button.value:  # Button released
                 try:
-                    if keymap[0] == InputType.KEY:
+                    if keymap[0] == ButtonInputType.KEY:
                         kbd.release(*keymap[1])
                 except ValueError:
                     pass
@@ -73,26 +71,37 @@ class RotaryEncoder(Button):
     def __init__(
         self,
         name: str,
-        pin_a: tuple[board.Pin, callable],
-        pin_b: tuple[board.Pin, callable],
-        pin_button: tuple[board.Pin, tuple[InputType, list]],
+        pin_a: board.Pin,
+        pin_b: board.Pin,
+        actions: tuple[callable, callable],
+        pin_button: tuple[board.Pin, tuple[ButtonInputType, list]],
     ):
         super().__init__(pin_button)
         self.name = name
-        self.pin_a = pin_a
-        self.pin_b = pin_b
-        self.encoder = rotaryio.IncrementalEncoder(pin_a[0], pin_b[0])
+        self.actions = actions
+        self.encoder = rotaryio.IncrementalEncoder(pin_a, pin_b)
         self.last_position = self.encoder.position
 
     def handle_encoder(self):
+        num_actions = len(self.actions)
+
         current_position = self.encoder.position
+        index = current_position % num_actions
+
         if current_position != self.last_position:
             if current_position > self.last_position:
                 print(f"{self.name}: Clockwise")
-                self.pin_a[1]()
+                if num_actions > 2:
+                    self.actions[index]()
+                else:
+                    self.actions[0]()
             else:
                 print(f"{self.name}: Counterclockwise")
-                self.pin_b[1]()
+                if num_actions > 2:
+                    self.actions[index]()
+                else:
+                    self.actions[1]()
+
             self.last_position = current_position
 
     def handle_button_encoder(self):
@@ -104,30 +113,44 @@ def main():
 
     encoder_1 = RotaryEncoder(
         "Encoder 1",
-        pin_a=(board.GP0, lambda: mouse.move(wheel=1)),
-        pin_b=(board.GP1, lambda: mouse.move(wheel=-1)),
-        pin_button=(board.GP5, (InputType.KEY, [Keycode.C])),
+        pin_a=board.GP0,
+        pin_b=board.GP1,
+        actions=(lambda: mouse.move(wheel=-1), lambda: mouse.move(wheel=1)),
+        pin_button=(board.GP5, (ButtonInputType.KEY, [Keycode.TWO])),
     )
 
     encoder_2 = RotaryEncoder(
         "Encoder 2",
-        pin_a=(board.GP3, lambda: cc.send(ConsumerControlCode.VOLUME_DECREMENT)),
-        pin_b=(board.GP4, lambda: cc.send(ConsumerControlCode.VOLUME_INCREMENT)),
-        pin_button=(board.GP2, (InputType.KEY, [Keycode.S])),
+        pin_a=board.GP3,
+        pin_b=board.GP4,
+        actions=(
+            lambda: kbd.send(Keycode.CONTROL, Keycode.LEFT_BRACKET),
+            lambda: kbd.send(Keycode.CONTROL, Keycode.RIGHT_BRACKET),
+        ),
+        pin_button=(board.GP2, (ButtonInputType.KEY, [Keycode.FIVE])),
     )
 
     encoder_3 = RotaryEncoder(
         "Encoder 3",
-        pin_a=(board.GP16, lambda: cc.send(ConsumerControlCode.VOLUME_DECREMENT)),
-        pin_b=(board.GP17, lambda: cc.send(ConsumerControlCode.VOLUME_INCREMENT)),
-        pin_button=(board.GP15, (InputType.KEY, [Keycode.S])),
+        pin_a=board.GP16,
+        pin_b=board.GP17,
+        actions=(
+            lambda: kbd.send(Keycode.RIGHT_BRACKET),
+            lambda: kbd.send(Keycode.LEFT_BRACKET),
+        ),
+        pin_button=(board.GP15, (ButtonInputType.KEY, [Keycode.SPACE])),
     )
 
     encoder_4 = RotaryEncoder(
-        "Encoder 3",
-        pin_a=(board.GP12, lambda: cc.send(ConsumerControlCode.VOLUME_DECREMENT)),
-        pin_b=(board.GP13, lambda: cc.send(ConsumerControlCode.VOLUME_INCREMENT)),
-        pin_button=(board.GP14ss, (InputType.KEY, [Keycode.S])),
+        "Encoder 4",
+        pin_a=board.GP12,
+        pin_b=board.GP13,
+        actions=(
+            lambda: kbd.send(Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.ONE),
+            lambda: kbd.send(Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.TWO),
+            lambda: kbd.send(Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.THREE),
+        ),
+        pin_button=(board.GP14, (ButtonInputType.KEY, [Keycode.FORWARD_SLASH])),
     )
 
     while True:
