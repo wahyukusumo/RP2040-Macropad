@@ -73,6 +73,13 @@ class Button:
                     pass
                 self.button_state = False
 
+    def button_action_with_interupt(self):
+        try:
+            # if not self.pin_interupt.value:
+            self.button_action()
+        except OSError as e:
+            print(e)
+
 
 class RotaryEncoder(Button):
     def __init__(
