@@ -1,6 +1,7 @@
 import board
 from digitalio import DigitalInOut, Direction, Pull
 import usb_hid
+import microcontroller
 import rotaryio
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.mouse import Mouse
@@ -25,18 +26,23 @@ class ButtonInputType:
 
 
 class Button:
-    def __init__(
-        self,
-        pin_button: tuple[board.Pin, tuple[ButtonInputType, list]],
-    ):
-        self.pin_button = pin_button
-        self.button = self.init_button(pin_button[0])
+    def __init__(self, pin_button, actions, pin_interupt=None):
+        self.button = self.init_button(pin_button)
         self.button_state = False
+        self.actions = actions
+        if pin_interupt:
+            self.pin_interupt = self.init_button(pin_interupt)
 
-    def init_button(self, pin_button: board.Pin):
-        button = DigitalInOut(pin_button)
-        button.direction = Direction.INPUT
-        button.pull = Pull.UP  # Pull-up resistor enabled
+    def init_button(self, button):
+        # This is for button that use gpio in pico
+        if isinstance(button, microcontroller.Pin):
+            button = DigitalInOut(button)
+            button.direction = Direction.INPUT
+            button.pull = Pull.UP  # Pull-up resistor enabled
+        # And this for pin in expander like PCF8574
+        else:
+            button.switch_to_input(pull=Pull.UP)
+
         return button
 
     def handle_button(self):
