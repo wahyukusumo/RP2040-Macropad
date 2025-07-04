@@ -34,8 +34,11 @@ class Button:
             self.pin_interupt = self.init_button(pin_interupt)
 
     def init_button(self, button):
+        # Button type string is for matrix
+        if type(button) == str:
+            return button
         # This is for button that use gpio in pico
-        if isinstance(button, microcontroller.Pin):
+        elif isinstance(button, microcontroller.Pin):
             button = DigitalInOut(button)
             button.direction = Direction.INPUT
             button.pull = Pull.UP  # Pull-up resistor enabled
@@ -45,33 +48,40 @@ class Button:
 
         return button
 
-    def handle_button(self):
-        keymap = self.pin_button[1]
-        if self.button_state == False:
-            if not self.button.value:  # Button pressed
-                try:
-                    if keymap[0] == ButtonInputType.KEY:
-                        HIDType.KBD.press(*keymap[1])
-                    elif keymap[0] == ButtonInputType.LETTER:
-                        for letter in keymap[1][0]:
-                            HIDType.LAYOUT.write(letter)
-                        if keymap[1][1] == ButtonInputType.NEW_LINE:
-                            HIDType.KBD.press(*[Keycode.RETURN])
-                            HIDType.KBD.release(*[Keycode.RETURN])
-                    elif keymap[0] == ButtonInputType.MEDIA:
-                        HIDType.CC.send(keymap[1][0])
-                except ValueError:  # deals with six-key limit
-                    pass
-                self.button_state = True
+    def button_action(self, is_pressed=None):
+        # If bool is_pressed not set in argument
+        # detect button straight from the pin
+        if is_pressed == None:
+            is_pressed = self.button.value
 
-        if self.button_state == True:
-            if self.button.value:  # Button released
-                try:
-                    if keymap[0] == ButtonInputType.KEY:
-                        HIDType.KBD.release(*keymap[1])
-                except ValueError:
-                    pass
-                self.button_state = False
+        keymap = self.actions
+
+        if self.button_state == False and not is_pressed:  # Button pressed
+            try:
+                if keymap[0] == ButtonInputType.KEY:
+                    HIDType.KBD.press(*keymap[1])
+                elif keymap[0] == ButtonInputType.LETTER:
+                    for letter in keymap[1][0]:
+                        HIDType.LAYOUT.write(letter)
+                    if keymap[1][1] == ButtonInputType.NEW_LINE:
+                        HIDType.KBD.press(*[Keycode.RETURN])
+                        HIDType.KBD.release(*[Keycode.RETURN])
+                elif keymap[0] == ButtonInputType.MEDIA:
+                    HIDType.CC.send(keymap[1][0])
+
+                # print("Button pressed")
+            except ValueError:  # deals with six-key limit
+                pass
+            self.button_state = True
+
+        if self.button_state == True and is_pressed:  # Button released
+            try:
+                if keymap[0] == ButtonInputType.KEY:
+                    HIDType.KBD.release(*keymap[1])
+            except ValueError:
+                pass
+            self.button_state = False
+            # print("Button released")
 
     def button_action_with_interupt(self):
         try:
