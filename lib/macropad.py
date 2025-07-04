@@ -31,7 +31,7 @@ class Button:
     ):
         self.pin_button = pin_button
         self.button = self.init_button(pin_button[0])
-        self.button_state = 0
+        self.button_state = False
 
     def init_button(self, pin_button: board.Pin):
         button = DigitalInOut(pin_button)
@@ -41,7 +41,7 @@ class Button:
 
     def handle_button(self):
         keymap = self.pin_button[1]
-        if self.button_state == 0:
+        if self.button_state == False:
             if not self.button.value:  # Button pressed
                 try:
                     if keymap[0] == ButtonInputType.KEY:
@@ -56,16 +56,16 @@ class Button:
                         HIDType.CC.send(keymap[1][0])
                 except ValueError:  # deals with six-key limit
                     pass
-                self.button_state = 1
+                self.button_state = True
 
-        if self.button_state == 1:
+        if self.button_state == True:
             if self.button.value:  # Button released
                 try:
                     if keymap[0] == ButtonInputType.KEY:
                         HIDType.KBD.release(*keymap[1])
                 except ValueError:
                     pass
-                self.button_state = 0
+                self.button_state = False
 
 
 class RotaryEncoder(Button):
