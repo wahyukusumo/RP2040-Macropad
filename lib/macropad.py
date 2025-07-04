@@ -1,8 +1,10 @@
+import time
 import board
-from digitalio import DigitalInOut, Direction, Pull
+import digitalio
 import usb_hid
-import microcontroller
 import rotaryio
+import microcontroller
+from digitalio import DigitalInOut, Direction, Pull
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.mouse import Mouse
 from adafruit_hid.keycode import Keycode
@@ -15,6 +17,7 @@ class HIDType:
     KBD = Keyboard(usb_hid.devices)
     MOUSE = Mouse(usb_hid.devices)
     CC = ConsumerControl(usb_hid.devices)
+    CC_CODE = ConsumerControlCode
     LAYOUT = KeyboardLayoutUS(KBD)
 
 
@@ -164,3 +167,61 @@ class SplitRotaryEncoder:
                     self.actions[1]()
 
             self.last_position = current_position
+
+
+# This button matrix used PCF8574 for columns.
+# Columns is the input and rows the output
+class ButtonMatrix:
+    def __init__(self, rows, columns, actions, expander):
+        self.actions = actions
+        self.expander = expander
+        self.rows = self.init_matrix_by_gpio(rows)
+        self.columns = self.init_matrix_by_expander(columns)
+        self.buttons = self.init_button_matrix()
+
+    def button_name(self, r, c):
+        return f"R{r}C{c}"  # output: R0C0
+
+    # This is input
+    def init_matrix_by_expander(self, pin_list):
+        pins = [self.expander.get_pin(i) for i in pin_list]
+        for pin in pins:
+            pin.switch_to_input()
+        return pins
+
+    # This is output
+    def init_matrix_by_gpio(self, pin_list):
+        pins = []
+
+        for pin in pin_list:
+            p = digitalio.DigitalInOut(pin)
+            p.direction = digitalio.Direction.OUTPUT
+            p.value = True
+            pins.append(p)
+
+        return pins
+
+    def init_button_matrix(self):
+        buttons = {}
+        for r in range(len(self.rows)):
+            for c in range(len(self.columns)):
+                label = f"R{r}C{c}"  # output: R0C0
+                buttons[label] = Button(pin_button=label, actions=self.actions[r][c])
+
+        return buttons
+
+    # Put this in while loop
+    def matrix_scanning(self):
+        for row_idx, row in enumerate(self.rows):
+            for r in self.rows:
+                r.value = True  # deactivate all rows
+            row.value = False  # activate current row
+            time.sleep(0.001)
+
+            for col_idx, col in enumerate(self.columns):
+                label = f"R{row_idx}C{col_idx}"
+                is_pressed = not col.value  # return False
+                button = self.buttons[label]
+
+                if is_pressed != button.button_state:
+                    button.button_action(is_pressed=not is_pressed)
