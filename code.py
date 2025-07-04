@@ -10,10 +10,12 @@ from adafruit_hid.consumer_control import ConsumerControl
 from adafruit_hid.consumer_control_code import ConsumerControlCode
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 
-kbd = Keyboard(usb_hid.devices)
-mouse = Mouse(usb_hid.devices)
-cc = ConsumerControl(usb_hid.devices)
-layout = KeyboardLayoutUS(kbd)
+
+class HIDType:
+    KBD = Keyboard(usb_hid.devices)
+    MOUSE = Mouse(usb_hid.devices)
+    CC = ConsumerControl(usb_hid.devices)
+    LAYOUT = KeyboardLayoutUS(KBD)
 
 
 class ButtonInputType:
@@ -44,13 +46,13 @@ class Button:
             if not self.button.value:  # Button pressed
                 try:
                     if keymap[0] == ButtonInputType.KEY:
-                        kbd.press(*keymap[1])
+                        HIDType.KBD.press(*keymap[1])
                     elif keymap[0] == ButtonInputType.LETTER:
                         for letter in keymap[1][0]:
                             layout.write(letter)
                         if keymap[1][1] == ButtonInputType.NEW_LINE:
-                            kbd.press(*[Keycode.RETURN])
-                            kbd.release(*[Keycode.RETURN])
+                            HIDType.KBD.press(*[Keycode.RETURN])
+                            HIDType.KBD.release(*[Keycode.RETURN])
                     elif keymap[0] == ButtonInputType.MEDIA:
                         cc.send(keymap[1][0])
                 except ValueError:  # deals with six-key limit
@@ -61,7 +63,7 @@ class Button:
             if self.button.value:  # Button released
                 try:
                     if keymap[0] == ButtonInputType.KEY:
-                        kbd.release(*keymap[1])
+                        HIDType.KBD.release(*keymap[1])
                 except ValueError:
                     pass
                 self.button_state = 0
@@ -115,7 +117,10 @@ def main():
         "Encoder 1",
         pin_a=board.GP0,
         pin_b=board.GP1,
-        actions=(lambda: mouse.move(wheel=-1), lambda: mouse.move(wheel=1)),
+        actions=(
+            lambda: HIDType.MOUSE.move(wheel=-1),
+            lambda: HIDType.MOUSE.move(wheel=1),
+        ),
         pin_button=(board.GP5, (ButtonInputType.KEY, [Keycode.TWO])),
     )
 
@@ -124,8 +129,8 @@ def main():
         pin_a=board.GP3,
         pin_b=board.GP4,
         actions=(
-            lambda: kbd.send(Keycode.CONTROL, Keycode.LEFT_BRACKET),
-            lambda: kbd.send(Keycode.CONTROL, Keycode.RIGHT_BRACKET),
+            lambda: HIDType.KBD.send(Keycode.CONTROL, Keycode.LEFT_BRACKET),
+            lambda: HIDType.KBD.send(Keycode.CONTROL, Keycode.RIGHT_BRACKET),
         ),
         pin_button=(board.GP2, (ButtonInputType.KEY, [Keycode.FIVE])),
     )
@@ -135,8 +140,8 @@ def main():
         pin_a=board.GP16,
         pin_b=board.GP17,
         actions=(
-            lambda: kbd.send(Keycode.RIGHT_BRACKET),
-            lambda: kbd.send(Keycode.LEFT_BRACKET),
+            lambda: HIDType.KBD.send(Keycode.RIGHT_BRACKET),
+            lambda: HIDType.KBD.send(Keycode.LEFT_BRACKET),
         ),
         pin_button=(board.GP15, (ButtonInputType.KEY, [Keycode.SPACE])),
     )
@@ -146,9 +151,15 @@ def main():
         pin_a=board.GP12,
         pin_b=board.GP13,
         actions=(
-            lambda: kbd.send(Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.ONE),
-            lambda: kbd.send(Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.TWO),
-            lambda: kbd.send(Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.THREE),
+            lambda: HIDType.KBD.send(
+                Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.ONE
+            ),
+            lambda: HIDType.KBD.send(
+                Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.TWO
+            ),
+            lambda: HIDType.KBD.send(
+                Keycode.LEFT_CONTROL, Keycode.LEFT_ALT, Keycode.THREE
+            ),
         ),
         pin_button=(board.GP14, (ButtonInputType.KEY, [Keycode.FORWARD_SLASH])),
     )
