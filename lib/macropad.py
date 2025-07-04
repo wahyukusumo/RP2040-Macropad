@@ -48,12 +48,12 @@ class Button:
                         HIDType.KBD.press(*keymap[1])
                     elif keymap[0] == ButtonInputType.LETTER:
                         for letter in keymap[1][0]:
-                            layout.write(letter)
+                            HIDType.LAYOUT.write(letter)
                         if keymap[1][1] == ButtonInputType.NEW_LINE:
                             HIDType.KBD.press(*[Keycode.RETURN])
                             HIDType.KBD.release(*[Keycode.RETURN])
                     elif keymap[0] == ButtonInputType.MEDIA:
-                        cc.send(keymap[1][0])
+                        HIDType.CC.send(keymap[1][0])
                 except ValueError:  # deals with six-key limit
                     pass
                 self.button_state = 1
