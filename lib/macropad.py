@@ -91,13 +91,14 @@ class Button:
             print(e)
 
 
+# Original Rotary Encoder
 class RotaryEncoder(Button):
     def __init__(
         self,
         name: str,
         pin_a: board.Pin,
         pin_b: board.Pin,
-        actions: tuple[callable, callable],
+        actions: tuple[callable, ...],
         pin_button: tuple[board.Pin, tuple[ButtonInputType, list]],
     ):
         super().__init__(pin_button)
@@ -114,13 +115,13 @@ class RotaryEncoder(Button):
 
         if current_position != self.last_position:
             if current_position > self.last_position:
-                print(f"{self.name}: Clockwise")
+                # print(f"{self.name}: Clockwise")
                 if num_actions > 2:
                     self.actions[index]()
                 else:
                     self.actions[0]()
             else:
-                print(f"{self.name}: Counterclockwise")
+                # print(f"{self.name}: Counterclockwise")
                 if num_actions > 2:
                     self.actions[index]()
                 else:
@@ -129,5 +130,37 @@ class RotaryEncoder(Button):
             self.last_position = current_position
 
     def handle_button_encoder(self):
-        self.handle_button()
+        self.button_action()
         self.handle_encoder()
+
+
+class SplitRotaryEncoder:
+    def __init__(self, name, encoder, index, actions):
+        self.name = name
+        self.encoder = encoder
+        self.index = index
+        self.last_position = encoder.positions[index]
+        self.actions = actions
+        self.num_actions = len(actions)
+
+    def encoder_action(self):
+        current_position = self.encoder.positions[self.index]
+        index = current_position % self.num_actions
+
+        if current_position != self.last_position:
+            # Clockwise action
+            if current_position > self.last_position:
+                # print(f"{self.name}: Clockwise")
+                if self.num_actions > 2:
+                    self.actions[index]()
+                else:
+                    self.actions[0]()
+            # Counterclokwise action
+            else:
+                # print(f"{self.name}: Counterclockwise")
+                if self.num_actions > 2:
+                    self.actions[index]()
+                else:
+                    self.actions[1]()
+
+            self.last_position = current_position
