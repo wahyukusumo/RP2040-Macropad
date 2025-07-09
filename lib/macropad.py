@@ -13,6 +13,7 @@ from adafruit_hid.consumer_control_code import ConsumerControlCode
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 
 
+# HID Type Tupple
 class HIDType:
     KBD = Keyboard(usb_hid.devices)
     MOUSE = Mouse(usb_hid.devices)
@@ -21,11 +22,13 @@ class HIDType:
     LAYOUT = KeyboardLayoutUS(KBD)
 
 
+# Input Type Tupple
 class ButtonInputType:
     MEDIA = 1  # this can be for volume, media player, brightness etc.
     KEY = 2  # Keyboard press
     LETTER = 3  # Text string
     NEW_LINE = "NEW_LINE"
+    CUSTOM = 4  # run lambda function
 
 
 class Button:
@@ -47,7 +50,7 @@ class Button:
             button.pull = Pull.UP  # Pull-up resistor enabled
         # And this for pin in expander like PCF8574
         else:
-            button.switch_to_input(pull=Pull.UP)
+            button.switch_to_input(pull=digitalio.Pull.UP)
 
         return button
 
@@ -95,16 +98,15 @@ class Button:
 
 
 # Original Rotary Encoder
-class RotaryEncoder(Button):
+class RotaryEncoder:
     def __init__(
         self,
         name: str,
         pin_a: board.Pin,
         pin_b: board.Pin,
         actions: tuple[callable, ...],
-        pin_button: tuple[board.Pin, tuple[ButtonInputType, list]],
     ):
-        super().__init__(pin_button)
+        super().__init__()
         self.name = name
         self.actions = actions
         self.encoder = rotaryio.IncrementalEncoder(pin_a, pin_b)
@@ -132,10 +134,6 @@ class RotaryEncoder(Button):
 
             self.last_position = current_position
 
-    def handle_button_encoder(self):
-        self.button_action()
-        self.handle_encoder()
-
 
 class SplitRotaryEncoder:
     def __init__(self, name, encoder, index, actions):
@@ -158,6 +156,7 @@ class SplitRotaryEncoder:
                     self.actions[index]()
                 else:
                     self.actions[0]()
+
             # Counterclokwise action
             else:
                 # print(f"{self.name}: Counterclockwise")
@@ -167,6 +166,7 @@ class SplitRotaryEncoder:
                     self.actions[1]()
 
             self.last_position = current_position
+            return True
 
 
 # This button matrix used PCF8574 for columns.
