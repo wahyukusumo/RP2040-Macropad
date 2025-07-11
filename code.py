@@ -5,6 +5,7 @@ import display
 from macropad import HIDType, ButtonInputType, Button, SplitRotaryEncoder, ButtonMatrix
 from adafruit_pcf8574 import PCF8574
 from adafruit_hid.keycode import Keycode
+from rp2pio_dualincrementalencoder import DualIncrementalEncoder
 
 
 def check_i2c_address():
@@ -35,13 +36,13 @@ SCREEN = display.DisplayScreen(
     pin_bl=board.GP23,
 )
 
-ENCODER = [
+ENCODERS = [
     {
-        "name": "Encoder 1",
+        "name": "Encoder 1",  # Encoder 1 (Top Left)
         "pins": (board.GP0, board.GP1),
         "actions": (
-            lambda: HIDType.MOUSE.move(wheel=-1),
-            lambda: HIDType.MOUSE.move(wheel=1),
+            lambda: SCREEN.change_brightness(-1),
+            lambda: SCREEN.change_brightness(+1),
         ),
         "button": {"pin": 0, "actions": ()},
     },
@@ -126,29 +127,39 @@ KEYPADS = [
 
 def init_expander():
     i2c = busio.I2C(scl=board.GP13, sda=board.GP12)  # SCL, SDA
-
     # Wait for I2C to be ready
     while not i2c.try_lock():
         pass
-
     i2c.unlock()
-
     return i2c
 
 
 def init_encoders():
-    pass
+    dual_encoders = []
+    for i in range(0, len(ENCODERS), 2):
+        pin_1, pin_2, pin_3, pin_4 = ENCODERS[i]["pins"] + ENCODERS[i + 1]["pins"]
+        init_dual_encoder = DualIncrementalEncoder(pin_1, pin_2, pin_3, pin_4)
+        dual_encoders.append(init_dual_encoder)
 
+    encoders = []
+    for i, encoder in enumerate(ENCODERS):
+        group = i // 2  # integer division groups every two items
+        local_index = i % 2  # 0 or 1
+        split_encoder = SplitRotaryEncoder(
+            name=encoder["name"],
+            encoder=dual_encoders[group],
+            index=local_index,
+            actions=encoder["actions"],
+        )
+        encoders.append(split_encoder)
 
-def init_encoders():
-    pass
+    return encoders
 
 
 def main():
     i2c = init_expander()
 
-    SCREEN.show_image("berry.bmp")
-    SCREEN.show_screen()
+    encoders = init_encoders()
 
     matrix = ButtonMatrix(
         actions=KEYPADS,
@@ -156,7 +167,14 @@ def main():
         rows=[board.GP14, board.GP15, board.GP17, board.GP24],
         columns=[0, 1, 2, 3, 4],
     )
+
+    SCREEN.show_image("berry.bmp")
+    SCREEN.show_screen()
+
     while True:
+        for encoder in encoders:
+            encoder.encoder_action()
+
         matrix.matrix_scanning()
 
 
