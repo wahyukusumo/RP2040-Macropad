@@ -3,14 +3,14 @@ import board
 import busio
 import display
 from macropad import (
-    HIDType,
+    HIDType as hid,
     ButtonInputType as BiT,
     Button,
     SplitRotaryEncoder,
     ButtonMatrix,
 )
 from adafruit_pcf8574 import PCF8574
-from adafruit_hid.keycode import Keycode as KC
+from adafruit_hid.keycode import Keycode as kc
 from rp2pio_dualincrementalencoder import DualIncrementalEncoder
 
 
@@ -44,89 +44,77 @@ SCREEN = display.DisplayScreen(
 
 ENCODERS = [
     {
-        "name": "Encoder 1",  # Encoder 1 (Top Left)
-        "pins": (board.GP0, board.GP1),
         "actions": (
             lambda: SCREEN.change_brightness(-1),
             lambda: SCREEN.change_brightness(+1),
         ),
-        "button": {"pin": 0, "actions": (BiT.KEY, [KC.ONE])},
+        "button": {"pin": 1, "actions": (BiT.KEY, [kc.ONE])},
     },
     {
-        "name": "Encoder 2",
-        "pins": (board.GP2, board.GP3),
         "actions": (
-            lambda: HIDType.MOUSE.move(wheel=-1),
-            lambda: HIDType.MOUSE.move(wheel=1),
+            lambda: hid.KBD.send(kc.A),
+            lambda: hid.KBD.send(kc.B),
         ),
-        "button": {"pin": 1, "actions": (BiT.KEY, [KC.TWO])},
+        "button": {"pin": 0, "actions": (BiT.KEY, [kc.TWO])},
     },
     {
-        "name": "Encoder 3",
-        "pins": (board.GP4, board.GP5),
         "actions": (
-            lambda: HIDType.MOUSE.move(wheel=-1),
-            lambda: HIDType.MOUSE.move(wheel=1),
+            lambda: hid.KBD.send(kc.C),
+            lambda: hid.KBD.send(kc.D),
         ),
-        "button": {"pin": 2, "actions": (BiT.KEY, [KC.THREE])},
+        "button": {"pin": 3, "actions": (BiT.KEY, [kc.THREE])},
     },
     {
-        "name": "Encoder 4",
-        "pins": (board.GP6, board.GP7),
         "actions": (
-            lambda: HIDType.MOUSE.move(wheel=-1),
-            lambda: HIDType.MOUSE.move(wheel=1),
+            lambda: hid.KBD.send(kc.E),
+            lambda: hid.KBD.send(kc.F),
         ),
-        "button": {"pin": 3, "actions": (BiT.KEY, [KC.FOUR])},
+        "button": {"pin": 2, "actions": (BiT.KEY, [kc.FOUR])},
     },
     {
-        "name": "Encoder 5",
-        "pins": (board.GP8, board.GP9),
         "actions": (
-            lambda: HIDType.MOUSE.move(wheel=-1),
-            lambda: HIDType.MOUSE.move(wheel=1),
+            lambda: hid.KBD.send(kc.G),
+            lambda: hid.KBD.send(kc.H),
         ),
-        "button": {"pin": 4, "actions": (BiT.KEY, [KC.FIVE])},
+        "button": {"pin": 4, "actions": (BiT.KEY, [kc.FIVE])},
     },
     {
-        "name": "Encoder 6",
-        "pins": (board.GP10, board.GP11),
         "actions": (
-            lambda: HIDType.MOUSE.move(wheel=-1),
-            lambda: HIDType.MOUSE.move(wheel=1),
+            lambda: hid.KBD.send(kc.I),
+            lambda: hid.KBD.send(kc.J),
         ),
-        "button": {"pin": 5, "actions": (BiT.KEY, [KC.A])},
+        "button": {"pin": 5, "actions": (BiT.KEY, [kc.SIX])},
     },
 ]
 
 KEYPADS = [
     [
-        (BiT.KEY, [KC.A]),
-        (BiT.KEY, [KC.B]),
-        (BiT.KEY, [KC.C]),
-        (BiT.KEY, [KC.D]),
-        (BiT.KEY, [KC.E]),
+        (BiT.KEY, [kc.A]),
+        (BiT.KEY, [kc.B]),
+        (BiT.KEY, [kc.C]),
+        (BiT.KEY, [kc.D]),
+        (BiT.KEY, [kc.E]),
     ],
     [
-        (BiT.KEY, [KC.F]),
-        (BiT.KEY, [KC.G]),
-        (BiT.KEY, [KC.H]),
-        (BiT.KEY, [KC.I]),
-        (BiT.KEY, [KC.J]),
+        (BiT.KEY, [kc.F]),
+        (BiT.KEY, [kc.G]),
+        (BiT.KEY, [kc.H]),
+        (BiT.KEY, [kc.I]),
+        (BiT.KEY, [kc.J]),
     ],
     [
-        (BiT.KEY, [KC.K]),
-        (BiT.KEY, [KC.L]),
-        (BiT.KEY, [KC.M]),
-        (BiT.KEY, [KC.N]),
-        (BiT.KEY, [KC.O]),
+        (BiT.KEY, [kc.K]),
+        (BiT.KEY, [kc.L]),
+        (BiT.KEY, [kc.M]),
+        (BiT.KEY, [kc.N]),
+        (BiT.KEY, [kc.O]),
     ],
     [
-        (BiT.KEY, [KC.P]),
-        (BiT.KEY, [KC.Q]),
-        (BiT.KEY, [KC.R]),
-        (BiT.KEY, [KC.S]),
-        (BiT.KEY, [KC.T]),
+        (BiT.KEY, [kc.P]),
+        (BiT.KEY, [kc.Q]),
+        (BiT.KEY, [kc.R]),
+        (BiT.KEY, [kc.S]),
+        (BiT.KEY, [kc.T]),
     ],
 ]
 
@@ -141,21 +129,24 @@ def init_expander():
 
 
 def init_encoders():
+
     dual_encoders = []
-    for i in range(0, len(ENCODERS), 2):
-        pin_1, pin_2, pin_3, pin_4 = ENCODERS[i]["pins"] + ENCODERS[i + 1]["pins"]
+    for i in range(0, 12, 4):
+        pin_1, pin_2, pin_3, pin_4 = [getattr(board, f"GP{j}") for j in range(i, i + 4)]
         init_dual_encoder = DualIncrementalEncoder(pin_1, pin_2, pin_3, pin_4)
         dual_encoders.append(init_dual_encoder)
 
+    # Encoder position on macropad hardware, order based on pin
+    orders = [1, 6, 4, 2, 5, 3]
     encoders = []
-    for i, encoder in enumerate(ENCODERS):
+    for i in range(6):
         group = i // 2  # integer division groups every two items
         local_index = i % 2  # 0 or 1
         split_encoder = SplitRotaryEncoder(
-            name=encoder["name"],
+            name=f"Encoder {i}",
             encoder=dual_encoders[group],
             index=local_index,
-            actions=encoder["actions"],
+            actions=ENCODERS[orders[i] - 1]["actions"],
         )
         encoders.append(split_encoder)
 
@@ -179,7 +170,7 @@ def main():
     encoders = init_encoders()
     encoder_buttons = init_button_encoders(i2c)
 
-    matrix = ButtonMatrix(
+    keypad = ButtonMatrix(
         actions=KEYPADS,
         expander=PCF8574(i2c, address=0x25),
         rows=[board.GP14, board.GP15, board.GP17, board.GP24],
@@ -196,7 +187,9 @@ def main():
         for button in encoder_buttons:
             button.button_action()
 
-        matrix.matrix_scanning()
+        keypad.matrix_scanning()
+
+        time.sleep(0.01)
 
 
 if __name__ == "__main__":
