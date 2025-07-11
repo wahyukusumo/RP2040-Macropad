@@ -2,9 +2,15 @@ import time
 import board
 import busio
 import display
-from macropad import HIDType, ButtonInputType, Button, SplitRotaryEncoder, ButtonMatrix
+from macropad import (
+    HIDType,
+    ButtonInputType as BiT,
+    Button,
+    SplitRotaryEncoder,
+    ButtonMatrix,
+)
 from adafruit_pcf8574 import PCF8574
-from adafruit_hid.keycode import Keycode
+from adafruit_hid.keycode import Keycode as KC
 from rp2pio_dualincrementalencoder import DualIncrementalEncoder
 
 
@@ -44,7 +50,7 @@ ENCODERS = [
             lambda: SCREEN.change_brightness(-1),
             lambda: SCREEN.change_brightness(+1),
         ),
-        "button": {"pin": 0, "actions": ()},
+        "button": {"pin": 0, "actions": (BiT.KEY, [KC.ONE])},
     },
     {
         "name": "Encoder 2",
@@ -53,7 +59,7 @@ ENCODERS = [
             lambda: HIDType.MOUSE.move(wheel=-1),
             lambda: HIDType.MOUSE.move(wheel=1),
         ),
-        "button": {"pin": 1, "actions": ()},
+        "button": {"pin": 1, "actions": (BiT.KEY, [KC.TWO])},
     },
     {
         "name": "Encoder 3",
@@ -62,7 +68,7 @@ ENCODERS = [
             lambda: HIDType.MOUSE.move(wheel=-1),
             lambda: HIDType.MOUSE.move(wheel=1),
         ),
-        "button": {"pin": 2, "actions": ()},
+        "button": {"pin": 2, "actions": (BiT.KEY, [KC.THREE])},
     },
     {
         "name": "Encoder 4",
@@ -71,7 +77,7 @@ ENCODERS = [
             lambda: HIDType.MOUSE.move(wheel=-1),
             lambda: HIDType.MOUSE.move(wheel=1),
         ),
-        "button": {"pin": 3, "actions": ()},
+        "button": {"pin": 3, "actions": (BiT.KEY, [KC.FOUR])},
     },
     {
         "name": "Encoder 5",
@@ -80,7 +86,7 @@ ENCODERS = [
             lambda: HIDType.MOUSE.move(wheel=-1),
             lambda: HIDType.MOUSE.move(wheel=1),
         ),
-        "button": {"pin": 4, "actions": ()},
+        "button": {"pin": 4, "actions": (BiT.KEY, [KC.FIVE])},
     },
     {
         "name": "Encoder 6",
@@ -89,38 +95,38 @@ ENCODERS = [
             lambda: HIDType.MOUSE.move(wheel=-1),
             lambda: HIDType.MOUSE.move(wheel=1),
         ),
-        "button": {"pin": 5, "actions": ()},
+        "button": {"pin": 5, "actions": (BiT.KEY, [KC.A])},
     },
 ]
 
 KEYPADS = [
     [
-        (ButtonInputType.KEY, [Keycode.A]),
-        (ButtonInputType.KEY, [Keycode.B]),
-        (ButtonInputType.KEY, [Keycode.C]),
-        (ButtonInputType.KEY, [Keycode.D]),
-        (ButtonInputType.KEY, [Keycode.E]),
+        (BiT.KEY, [KC.A]),
+        (BiT.KEY, [KC.B]),
+        (BiT.KEY, [KC.C]),
+        (BiT.KEY, [KC.D]),
+        (BiT.KEY, [KC.E]),
     ],
     [
-        (ButtonInputType.KEY, [Keycode.F]),
-        (ButtonInputType.KEY, [Keycode.G]),
-        (ButtonInputType.KEY, [Keycode.H]),
-        (ButtonInputType.KEY, [Keycode.I]),
-        (ButtonInputType.KEY, [Keycode.J]),
+        (BiT.KEY, [KC.F]),
+        (BiT.KEY, [KC.G]),
+        (BiT.KEY, [KC.H]),
+        (BiT.KEY, [KC.I]),
+        (BiT.KEY, [KC.J]),
     ],
     [
-        (ButtonInputType.KEY, [Keycode.K]),
-        (ButtonInputType.KEY, [Keycode.L]),
-        (ButtonInputType.KEY, [Keycode.M]),
-        (ButtonInputType.KEY, [Keycode.N]),
-        (ButtonInputType.KEY, [Keycode.O]),
+        (BiT.KEY, [KC.K]),
+        (BiT.KEY, [KC.L]),
+        (BiT.KEY, [KC.M]),
+        (BiT.KEY, [KC.N]),
+        (BiT.KEY, [KC.O]),
     ],
     [
-        (ButtonInputType.KEY, [Keycode.P]),
-        (ButtonInputType.KEY, [Keycode.Q]),
-        (ButtonInputType.KEY, [Keycode.R]),
-        (ButtonInputType.KEY, [Keycode.S]),
-        (ButtonInputType.KEY, [Keycode.T]),
+        (BiT.KEY, [KC.P]),
+        (BiT.KEY, [KC.Q]),
+        (BiT.KEY, [KC.R]),
+        (BiT.KEY, [KC.S]),
+        (BiT.KEY, [KC.T]),
     ],
 ]
 
@@ -156,10 +162,22 @@ def init_encoders():
     return encoders
 
 
+def init_button_encoders(i2c):
+    expander = PCF8574(i2c, address=0x20)
+    buttons = []
+
+    for encoder in ENCODERS:
+        button_pin = expander.get_pin(encoder["button"]["pin"])
+        button = Button(pin_button=button_pin, actions=encoder["button"]["actions"])
+        buttons.append(button)
+    return buttons
+
+
 def main():
     i2c = init_expander()
 
     encoders = init_encoders()
+    encoder_buttons = init_button_encoders(i2c)
 
     matrix = ButtonMatrix(
         actions=KEYPADS,
@@ -174,6 +192,9 @@ def main():
     while True:
         for encoder in encoders:
             encoder.encoder_action()
+
+        for button in encoder_buttons:
+            button.button_action()
 
         matrix.matrix_scanning()
 
