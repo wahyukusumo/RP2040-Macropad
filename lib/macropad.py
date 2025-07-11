@@ -35,7 +35,7 @@ class Button:
     def __init__(self, pin_button, actions, pin_interupt=None):
         self.button = self.init_button(pin_button)
         self.button_state = False
-        self.actions = actions
+        self.actions = actions  # (ButtonInputType.args , [Keycode.A, Keycode.B])
         if pin_interupt:
             self.pin_interupt = self.init_button(pin_interupt)
 
@@ -138,8 +138,8 @@ class RotaryEncoder:
 class SplitRotaryEncoder:
     def __init__(self, name, encoder, index, actions):
         self.name = name
-        self.encoder = encoder
-        self.index = index
+        self.encoder = encoder  # use DualIncrementalEncoder
+        self.index = index  # since using DualIncrementalEncoder require 4 pins and it split into 2 positions = (0,0)
         self.last_position = encoder.positions[index]
         self.actions = actions
         self.num_actions = len(actions)
