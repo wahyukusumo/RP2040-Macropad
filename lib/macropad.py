@@ -25,10 +25,8 @@ class HIDType:
 # Input Type Tupple
 class ButtonInputType:
     MEDIA = 1  # this can be for volume, media player, brightness etc.
-    KEY = 2  # Keyboard press
-    LETTER = 3  # Text string
-    NEW_LINE = "NEW_LINE"
-    CUSTOM = 4  # run lambda function
+    KEY = 2  # Normal keyboard press & release
+    CUSTOM = 3  # run lambda function
 
 
 class Button:
@@ -43,12 +41,14 @@ class Button:
         # Button type string is for matrix
         if type(button) == str:
             return button
+
         # This is for button that use gpio in pico
         elif isinstance(button, microcontroller.Pin):
             button = DigitalInOut(button)
             button.direction = Direction.INPUT
             button.pull = Pull.UP  # Pull-up resistor enabled
         # And this for pin in expander like PCF8574
+
         else:
             button.switch_to_input(pull=digitalio.Pull.UP)
 
@@ -60,20 +60,16 @@ class Button:
         if is_pressed == None:
             is_pressed = self.button.value
 
-        keymap = self.actions
+        input_type, keymap = self.actions
 
         if self.button_state == False and not is_pressed:  # Button pressed
             try:
-                if keymap[0] == ButtonInputType.KEY:
-                    HIDType.KBD.press(*keymap[1])
-                elif keymap[0] == ButtonInputType.LETTER:
-                    for letter in keymap[1][0]:
-                        HIDType.LAYOUT.write(letter)
-                    if keymap[1][1] == ButtonInputType.NEW_LINE:
-                        HIDType.KBD.press(*[Keycode.RETURN])
-                        HIDType.KBD.release(*[Keycode.RETURN])
-                elif keymap[0] == ButtonInputType.MEDIA:
-                    HIDType.CC.send(keymap[1][0])
+                if input_type == ButtonInputType.KEY:
+                    HIDType.KBD.press(*keymap)
+                elif input_type == ButtonInputType.MEDIA:
+                    HIDType.CC.send(keymap)
+                elif input_type == ButtonInputType.CUSTOM:
+                    keymap()
 
                 # print("Button pressed")
             except ValueError:  # deals with six-key limit
@@ -82,12 +78,15 @@ class Button:
 
         if self.button_state == True and is_pressed:  # Button released
             try:
-                if keymap[0] == ButtonInputType.KEY:
-                    HIDType.KBD.release(*keymap[1])
+                if input_type == ButtonInputType.KEY:
+                    HIDType.KBD.release(*keymap)
             except ValueError:
                 pass
             self.button_state = False
             # print("Button released")
+
+    def button_press(self):
+        pass
 
     def button_action_with_interupt(self):
         try:

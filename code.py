@@ -2,6 +2,7 @@ import time
 import board
 import busio
 import display
+from deej import Deej
 from macropad import (
     HIDType as hid,
     ButtonInputType as BiT,
@@ -10,8 +11,9 @@ from macropad import (
     ButtonMatrix,
 )
 from adafruit_pcf8574 import PCF8574
-from adafruit_hid.keycode import Keycode as kc
+from adafruit_hid.keycode import Keycode as key
 from rp2pio_dualincrementalencoder import DualIncrementalEncoder
+from adafruit_hid.consumer_control_code import ConsumerControlCode as cc_code
 
 
 def check_i2c_address():
@@ -33,6 +35,8 @@ def check_i2c_address():
         i2c.unlock()
 
 
+DEEJ = Deej(["Master", "Firefox", "Spotify", "Discord", "Apex"])
+
 SCREEN = display.DisplayScreen(
     pin_clock=board.GP18,
     pin_mosi=board.GP19,
@@ -40,6 +44,7 @@ SCREEN = display.DisplayScreen(
     pin_dc=board.GP21,
     pin_reset=board.GP22,
     pin_bl=board.GP23,
+    rotation=180,
 )
 
 ENCODERS = [
@@ -48,79 +53,79 @@ ENCODERS = [
             lambda: SCREEN.change_brightness(-1),
             lambda: SCREEN.change_brightness(+1),
         ),
-        "button": {"pin": 1, "actions": (BiT.KEY, [kc.ONE])},
+        "button": {"pin": 1, "actions": (BiT.KEY, [key.ONE])},
     },
     {
         "actions": (
-            lambda: hid.KBD.send(kc.A),
-            lambda: hid.KBD.send(kc.B),
+            lambda: DEEJ.change_volume(-5),
+            lambda: DEEJ.change_volume(+5),
         ),
-        "button": {"pin": 0, "actions": (BiT.KEY, [kc.TWO])},
+        "button": {"pin": 0, "actions": (BiT.KEY, [key.TWO])},
     },
     {
         "actions": (
-            lambda: hid.KBD.send(kc.C),
-            lambda: hid.KBD.send(kc.D),
+            lambda: hid.KBD.send(key.C),
+            lambda: hid.KBD.send(key.D),
         ),
-        "button": {"pin": 3, "actions": (BiT.KEY, [kc.THREE])},
+        "button": {"pin": 3, "actions": (BiT.KEY, [key.THREE])},
     },
     {
         "actions": (
-            lambda: hid.KBD.send(kc.E),
-            lambda: hid.KBD.send(kc.F),
+            lambda: hid.KBD.send(key.E),
+            lambda: hid.KBD.send(key.F),
         ),
-        "button": {"pin": 2, "actions": (BiT.KEY, [kc.FOUR])},
+        "button": {"pin": 2, "actions": (BiT.KEY, [key.FOUR])},
     },
     {
         "actions": (
-            lambda: hid.KBD.send(kc.G),
-            lambda: hid.KBD.send(kc.H),
+            lambda: hid.KBD.send(key.G),
+            lambda: hid.KBD.send(key.H),
         ),
-        "button": {"pin": 4, "actions": (BiT.KEY, [kc.FIVE])},
+        "button": {"pin": 4, "actions": (BiT.KEY, [key.FIVE])},
     },
     {
         "actions": (
-            lambda: hid.KBD.send(kc.I),
-            lambda: hid.KBD.send(kc.J),
+            lambda: hid.KBD.send(key.I),
+            lambda: hid.KBD.send(key.J),
         ),
-        "button": {"pin": 5, "actions": (BiT.KEY, [kc.SIX])},
+        "button": {"pin": 5, "actions": (BiT.KEY, [key.SIX])},
     },
 ]
 
 KEYPADS = [
     [
-        (BiT.KEY, [kc.A]),
-        (BiT.KEY, [kc.B]),
-        (BiT.KEY, [kc.C]),
-        (BiT.KEY, [kc.D]),
-        (BiT.KEY, [kc.E]),
+        (BiT.CUSTOM, [lambda: DEEJ.cycle_programs(-1)]),
+        (BiT.MEDIA, cc_code.SCAN_PREVIOUS_TRACK),
+        (BiT.MEDIA, cc_code.PLAY_PAUSE),
+        (BiT.MEDIA, cc_code.SCAN_NEXT_TRACK),
+        (BiT.KEY, [key.E]),
     ],
     [
-        (BiT.KEY, [kc.F]),
-        (BiT.KEY, [kc.G]),
-        (BiT.KEY, [kc.H]),
-        (BiT.KEY, [kc.I]),
-        (BiT.KEY, [kc.J]),
+        (BiT.KEY, [key.F]),
+        (BiT.KEY, [key.G]),
+        (BiT.KEY, [key.H]),
+        (BiT.KEY, [key.I]),
+        (BiT.KEY, [key.J]),
     ],
     [
-        (BiT.KEY, [kc.K]),
-        (BiT.KEY, [kc.L]),
-        (BiT.KEY, [kc.M]),
-        (BiT.KEY, [kc.N]),
-        (BiT.KEY, [kc.O]),
+        (BiT.KEY, [key.K]),
+        (BiT.KEY, [key.L]),
+        (BiT.KEY, [key.M]),
+        (BiT.KEY, [key.N]),
+        (BiT.KEY, [key.O]),
     ],
     [
-        (BiT.KEY, [kc.P]),
-        (BiT.KEY, [kc.Q]),
-        (BiT.KEY, [kc.R]),
-        (BiT.KEY, [kc.S]),
-        (BiT.KEY, [kc.T]),
+        (BiT.KEY, [key.P]),
+        (BiT.KEY, [key.Q]),
+        (BiT.KEY, [key.R]),
+        (BiT.KEY, [key.S]),
+        (BiT.KEY, [key.T]),
     ],
 ]
 
 
-def init_expander():
-    i2c = busio.I2C(scl=board.GP13, sda=board.GP12)  # SCL, SDA
+def init_expander(scl, sda):
+    i2c = busio.I2C(scl, sda)
     # Wait for I2C to be ready
     while not i2c.try_lock():
         pass
@@ -132,8 +137,8 @@ def init_encoders():
 
     dual_encoders = []
     for i in range(0, 12, 4):
-        pin_1, pin_2, pin_3, pin_4 = [getattr(board, f"GP{j}") for j in range(i, i + 4)]
-        init_dual_encoder = DualIncrementalEncoder(pin_1, pin_2, pin_3, pin_4)
+        pins = [getattr(board, f"GP{j}") for j in range(i, i + 4)]
+        init_dual_encoder = DualIncrementalEncoder(*pins)
         dual_encoders.append(init_dual_encoder)
 
     # Encoder position on macropad hardware, order based on pin
@@ -165,7 +170,7 @@ def init_button_encoders(i2c):
 
 
 def main():
-    i2c = init_expander()
+    i2c = init_expander(scl=board.GP13, sda=board.GP12)
 
     encoders = init_encoders()
     encoder_buttons = init_button_encoders(i2c)
@@ -178,11 +183,16 @@ def main():
     )
 
     SCREEN.show_image("berry.bmp")
+    display_deej = SCREEN.show_text(DEEJ.display)
+
     SCREEN.show_screen()
 
     while True:
         for encoder in encoders:
-            encoder.encoder_action()
+            enc = encoder.encoder_action()
+
+            if enc == True:
+                display_deej.text = DEEJ.display
 
         for button in encoder_buttons:
             button.button_action()
