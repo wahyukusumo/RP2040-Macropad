@@ -11,6 +11,7 @@ from adafruit_hid.keycode import Keycode
 from adafruit_hid.consumer_control import ConsumerControl
 from adafruit_hid.consumer_control_code import ConsumerControlCode
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
+from rp2pio_dualincrementalencoder import DualIncrementalEncoder
 
 
 # HID Type Tupple
@@ -30,14 +31,19 @@ class ButtonInputType:
 
 
 class Button:
-    def __init__(self, pin_button, actions, pin_interupt=None):
+    def __init__(
+        self,
+        pin_button: board.Pin | str,
+        actions: tuple[ButtonInputType, callable],
+        pin_interupt: board.Pin = None,
+    ):
         self.button = self.init_button(pin_button)
         self.button_state = False
         self.actions = actions  # (ButtonInputType.args , [Keycode.A, Keycode.B])
         if pin_interupt:
             self.pin_interupt = self.init_button(pin_interupt)
 
-    def init_button(self, button):
+    def init_button(self, button: board.Pin | str):
         # Button type string is for matrix
         if type(button) == str:
             return button
@@ -47,14 +53,14 @@ class Button:
             button = DigitalInOut(button)
             button.direction = Direction.INPUT
             button.pull = Pull.UP  # Pull-up resistor enabled
-        # And this for pin in expander like PCF8574
 
+        # And this for pin (PCF8574.get_pin) in expander like PCF8574
         else:
             button.switch_to_input(pull=digitalio.Pull.UP)
 
         return button
 
-    def button_action(self, is_pressed=None):
+    def button_action(self, is_pressed: bool = None):
         # If bool is_pressed not set in argument
         # detect button straight from the pin
         if is_pressed == None:
@@ -135,7 +141,13 @@ class RotaryEncoder:
 
 
 class SplitRotaryEncoder:
-    def __init__(self, name, encoder, index, actions):
+    def __init__(
+        self,
+        name: str,
+        encoder: rotaryio.IncrementalEncoder | DualIncrementalEncoder,
+        index: int,
+        actions: callable,
+    ):
         self.name = name
         self.encoder = encoder  # use DualIncrementalEncoder
         self.index = index  # since using DualIncrementalEncoder require 4 pins and it split into 2 positions = (0,0)
@@ -171,7 +183,9 @@ class SplitRotaryEncoder:
 # This button matrix used PCF8574 for columns.
 # Columns is the input and rows the output
 class ButtonMatrix:
-    def __init__(self, rows, columns, actions, expander):
+    def __init__(
+        self, rows: list[board.Pin], columns: list[int], actions: callable, expander
+    ):
         self.actions = actions
         self.expander = expander
         self.rows = self.init_matrix_by_gpio(rows)
@@ -182,14 +196,14 @@ class ButtonMatrix:
         return f"R{r}C{c}"  # output: R0C0
 
     # This is input
-    def init_matrix_by_expander(self, pin_list):
+    def init_matrix_by_expander(self, pin_list: list[int]):
         pins = [self.expander.get_pin(i) for i in pin_list]
         for pin in pins:
             pin.switch_to_input()
         return pins
 
     # This is output
-    def init_matrix_by_gpio(self, pin_list):
+    def init_matrix_by_gpio(self, pin_list: list[board.Pin]):
         pins = []
 
         for pin in pin_list:
