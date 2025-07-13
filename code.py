@@ -14,6 +14,7 @@ from adafruit_pcf8574 import PCF8574
 from adafruit_hid.keycode import Keycode as key
 from rp2pio_dualincrementalencoder import DualIncrementalEncoder
 from adafruit_hid.consumer_control_code import ConsumerControlCode as cc_code
+from adafruit_display_text import label
 
 
 def check_i2c_address():
@@ -94,11 +95,11 @@ ENCODERS = [
 
 KEYPADS = [
     [
-        (BiT.CUSTOM, [lambda: DEEJ.cycle_programs(-1)]),
+        (BiT.CUSTOM, lambda: DEEJ.cycle_programs(-1)),
         (BiT.MEDIA, cc_code.SCAN_PREVIOUS_TRACK),
         (BiT.MEDIA, cc_code.PLAY_PAUSE),
         (BiT.MEDIA, cc_code.SCAN_NEXT_TRACK),
-        (BiT.KEY, [key.E]),
+        (BiT.KEY, []),
     ],
     [
         (BiT.KEY, [key.F]),
@@ -169,6 +170,16 @@ def init_button_encoders(i2c):
     return buttons
 
 
+def init_volumes_label():
+    labels = []
+    for i in range(DEEJ.num_programs):
+        y = 50 + (i - 1) * 25
+        text = f"{DEEJ.volumes[i]} - {DEEJ.programs[i]}"
+        label = SCREEN.label(text, x=15, y=y)
+        labels.append(label)
+    return labels
+
+
 def main():
     i2c = init_expander(scl=board.GP13, sda=board.GP12)
 
@@ -182,9 +193,9 @@ def main():
         columns=[0, 1, 2, 3, 4],
     )
 
-    SCREEN.show_image("berry.bmp")
-    display_deej = SCREEN.show_text(DEEJ.display)
+    SCREEN.show_image("media/lize.bmp")
 
+    labels = init_volumes_label()
     SCREEN.show_screen()
 
     while True:
@@ -192,7 +203,7 @@ def main():
             enc = encoder.encoder_action()
 
             if enc == True:
-                display_deej.text = DEEJ.display
+                labels[DEEJ.current].text = DEEJ.display
 
         for button in encoder_buttons:
             button.button_action()
