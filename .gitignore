@@ -1,3 +1,5 @@
 .vscode
 mpy-cross.exe
+mpy-cross-windows-9.2.8.static.exe
 .venv
+test.py
