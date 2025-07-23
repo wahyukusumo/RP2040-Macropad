@@ -8,7 +8,7 @@ import time
 from fourwire import FourWire
 from adafruit_st7789 import ST7789
 from adafruit_bitmap_font import bitmap_font
-from adafruit_display_text import label
+from adafruit_display_text.outlined_label import OutlinedLabel
 
 
 class DisplayScreen:
@@ -16,7 +16,7 @@ class DisplayScreen:
         self, pin_clock, pin_mosi, pin_cs, pin_dc, pin_reset, pin_bl, rotation=0
     ):
         self.rotation = rotation
-        self.current = 3  # default brightness level
+        self.current_brightness_level = 3  # default brightness level
         self.levels = [
             0,
             6553,
@@ -29,19 +29,20 @@ class DisplayScreen:
             52428,
             58981,
         ]
-        self.brightness = None
+        self.brightness = None  # None because it will initialize by init_display()
         self.display = self.init_display(
             pin_clock, pin_mosi, pin_cs, pin_dc, pin_reset, pin_bl
         )
         self.group = displayio.Group()
+        self.gif_group = displayio.Group(scale=2)
         self.images_group = displayio.Group()
         self.texts_group = displayio.Group()
 
     def change_brightness(self, direction):
         # direction value is +1 or -1
-        index = self.current + direction
-        self.current = index % 10
-        self.brightness.duty_cycle = self.levels[self.current]
+        index = self.current_brightness_level + direction
+        self.current_brightness_level = index % 10
+        self.brightness.duty_cycle = self.levels[self.current_brightness_level]
 
     def init_spi_bus(self, pin_clock, pin_mosi):
         spi = busio.SPI(clock=pin_clock, MOSI=pin_mosi)
@@ -57,7 +58,7 @@ class DisplayScreen:
         spi = self.init_spi_bus(pin_clock, pin_mosi)
 
         self.brightness = pwmio.PWMOut(pin_bl, frequency=5000, duty_cycle=0)
-        self.brightness.duty_cycle = self.levels[self.current]
+        self.brightness.duty_cycle = self.levels[self.current_brightness_level]
 
         display_bus = FourWire(spi, command=pin_dc, chip_select=pin_cs, reset=pin_reset)
         display = ST7789(
@@ -89,60 +90,70 @@ class DisplayScreen:
         # Show it
         self.group.append(tile)
 
-    def gif_io(self):
-        odg = gifio.OnDiskGif("media/tako.gif")
-
-        start = time.monotonic()
-        next_delay = odg.next_frame()  # Load the first frame
-        end = time.monotonic()
-        overhead = end - start
-
-        face = displayio.TileGrid(
-            odg.bitmap,
-            pixel_shader=displayio.ColorConverter(
-                input_colorspace=displayio.Colorspace.RGB565_SWAPPED
-            ),
-        )
-        self.group.append(face)
-        # self.display.root_group = self.group
-        self.display.refresh()
-
-        return odg, next_delay, overhead
-
-        # Display repeatedly.
-        # while True:
-        # Sleep for the frame delay specified by the GIF,
-        # minus the overhead measured to advance between frames.
-        # time.sleep(max(0, next_delay - overhead))
-        # next_delay = odg.next_frame()
-
     def show_screen(self):
         self.group.append(self.images_group)
+        self.group.append(self.gif_group)
         self.group.append(self.texts_group)
         self.display.root_group = self.group
 
     def label(self, text, x, y):
         # Set text, font, and color
-        font = bitmap_font.load_font("fonts/LexendDeca-Regular-17.pcf")
-        # font = terminalio.FONT
-        text_area = label.Label(
+        # font = bitmap_font.load_font("fonts/LexendDeca-Regular-17.pcf")
+        font = terminalio.FONT
+        text_area = OutlinedLabel(
             font=font,
             text=text,
             color=0x88363E,
-            # outline_color=0xFFFFFF,
-            # outline_size=1,
+            outline_color=0xFFFFFF,
+            outline_size=1,
             x=x,
             y=y,
-            scale=1,
+            scale=2,
         )
         self.texts_group.append(text_area)
         return text_area
 
 
+class PlayGif:
+    def __init__(self, gif_file, group, display):
+        self.group = group
+        self.display = display
+        self.odg = gifio.OnDiskGif(gif_file)
+
+        start = time.monotonic()
+        self.next_delay = self.odg.next_frame()  # Load the first frame
+        end = time.monotonic()
+        self.overhead = end - start
+
+        self.face = displayio.TileGrid(
+            self.odg.bitmap,
+            pixel_shader=displayio.ColorConverter(
+                input_colorspace=displayio.Colorspace.RGB565_SWAPPED
+            ),
+        )
+        self.group.append(self.face)
+        self.display.refresh()
+
+        self.next_update_time = time.monotonic() + max(
+            0, self.next_delay - self.overhead
+        )
+
+    def update_gif(self):
+        now = time.monotonic()
+        if now >= self.next_update_time:
+            start = time.monotonic()
+            self.next_delay = self.odg.next_frame()
+            end = time.monotonic()
+            self.overhead = end - start
+
+            self.display.refresh()
+            self.next_update_time = now + max(0, self.next_delay - self.overhead)
+
+
 class Slideshow:
     def __init__(self, group):
         folder = "/media"
-        self.group = group
+        self.group = group  # get group from DisplayScreen
         self.dwell = 60
         self.images = [
             folder + "/" + f
@@ -152,7 +163,7 @@ class Slideshow:
         self.num_images = len(self.images)
         self.last_time = time.monotonic()
         self.index = 0
-        self.show_image(self.images[self.index])
+        self.show_image(self.images[self.index])  # show first image for the first time
 
     def show_image(self, image_file):
         bitmap = displayio.OnDiskBitmap(image_file)
