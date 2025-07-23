@@ -138,6 +138,8 @@ class DigitalInOut:
         pull-down resistors are NOT supported!
         """
         self.direction = digitalio.Direction.INPUT
+        # Add if condition in self.pull so it only initialize if we put value on pull argument.
+        # Because without if statement and I use switch_to_input(pull=False) it won't work
         if pull:
             self.pull = pull
 
