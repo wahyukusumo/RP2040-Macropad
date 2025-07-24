@@ -2,6 +2,7 @@ import time
 import board
 import busio
 import display
+import config
 from deej import Deej
 from macropad import (
     HIDType as hid,
@@ -17,74 +18,52 @@ from adafruit_hid.consumer_control_code import ConsumerControlCode as cc_code
 from adafruit_display_text import label
 
 
-def check_i2c_address():
-    # Initialize I2C (e.g., I2C0: GP0 = SDA, GP1 = SCL)
-    i2c = busio.I2C(scl=board.GP13, sda=board.GP12)  # SCL, SDA
-
-    while not i2c.try_lock():
-        pass
-
-    try:
-        devices = i2c.scan()
-        if devices:
-            print("I2C devices found:")
-            for device in devices:
-                print(" - Address: 0x{:02X}".format(device))
-        else:
-            print("No I2C devices found.")
-    finally:
-        i2c.unlock()
-
-
-DEEJ = Deej(["Master", "Firefox", "Spotify", "Discord", "Apex"])
+DEEJ = Deej(config.DEEJ_PROGRAMS)
 
 SCREEN = display.DisplayScreen(
-    pin_clock=board.GP18,
-    pin_mosi=board.GP19,
-    pin_cs=board.GP20,
-    pin_dc=board.GP21,
-    pin_reset=board.GP22,
-    pin_bl=board.GP23,
-    rotation=180,
+    pin_clock=config.DISPLAY_PINS["CLOCK"],
+    pin_mosi=config.DISPLAY_PINS["MOSI"],
+    pin_cs=config.DISPLAY_PINS["CS"],
+    pin_dc=config.DISPLAY_PINS["DC"],
+    pin_reset=config.DISPLAY_PINS["RESET"],
+    pin_bl=config.DISPLAY_PINS["BL"],
+    rotation=config.DISPLAY_PINS["ROTATION"],
 )
 
 ENCODERS = [
-    {
+    {  # Encoder 1
         "actions": (
             lambda: SCREEN.change_brightness(-1),
             lambda: SCREEN.change_brightness(+1),
         ),
         "button": {"pin": 1, "actions": (BiT.KEY, [key.ONE])},
     },
-    {
+    {  # Encoder 2
         "actions": (
             lambda: DEEJ.change_volume(-5),
             lambda: DEEJ.change_volume(+5),
         ),
         "button": {"pin": 0, "actions": (BiT.KEY, [key.TWO])},
     },
-    {
-        "actions": (
-            lambda: hid.KBD.send(key.C),
-            lambda: hid.KBD.send(key.D),
-        ),
+    {  # Encoder 3
+        "actions": (lambda: hid.MOUSE.move(wheel=-1), lambda: hid.MOUSE.move(wheel=1)),
         "button": {"pin": 3, "actions": (BiT.KEY, [key.THREE])},
     },
-    {
+    {  # Encoder 4
         "actions": (
-            lambda: hid.KBD.send(key.E),
-            lambda: hid.KBD.send(key.F),
+            lambda: hid.KBD.send(key.CONTROL, key.LEFT_BRACKET),
+            lambda: hid.KBD.send(key.CONTROL, key.RIGHT_BRACKET),
         ),
         "button": {"pin": 2, "actions": (BiT.KEY, [key.FOUR])},
     },
-    {
+    {  # Encoder 5
         "actions": (
-            lambda: hid.KBD.send(key.G),
-            lambda: hid.KBD.send(key.H),
+            lambda: hid.KBD.send(key.CONTROL, key.Z),
+            lambda: hid.KBD.send(key.CONTROL, key.SHIFT, key.Z),
         ),
         "button": {"pin": 4, "actions": (BiT.KEY, [key.FIVE])},
     },
-    {
+    {  # Encoder 6
         "actions": (
             lambda: hid.KBD.send(key.I),
             lambda: hid.KBD.send(key.J),
@@ -99,7 +78,7 @@ KEYPADS = [
         (BiT.MEDIA, cc_code.SCAN_PREVIOUS_TRACK),
         (BiT.MEDIA, cc_code.PLAY_PAUSE),
         (BiT.MEDIA, cc_code.SCAN_NEXT_TRACK),
-        (BiT.KEY, []),
+        (BiT.CUSTOM, lambda: DEEJ.cycle_programs(+1)),
     ],
     [
         (BiT.KEY, [key.F]),
@@ -134,25 +113,23 @@ def init_expander(scl, sda):
     return i2c
 
 
-def init_encoders():
+def init_encoders(encoders_num):
 
     dual_encoders = []
-    for i in range(0, 12, 4):
+    for i in range(0, encoders_num * 2, 4):
         pins = [getattr(board, f"GP{j}") for j in range(i, i + 4)]
         init_dual_encoder = DualIncrementalEncoder(*pins)
         dual_encoders.append(init_dual_encoder)
 
-    # Encoder position on macropad hardware, order based on pin
-    orders = [1, 6, 4, 2, 5, 3]
     encoders = []
-    for i in range(6):
+    for i in range(encoders_num):
         group = i // 2  # integer division groups every two items
         local_index = i % 2  # 0 or 1
         split_encoder = SplitRotaryEncoder(
             name=f"Encoder {i}",
             encoder=dual_encoders[group],
             index=local_index,
-            actions=ENCODERS[orders[i] - 1]["actions"],
+            actions=ENCODERS[config.ROTARY_ENCODERS_ORDER[i] - 1]["actions"],
         )
         encoders.append(split_encoder)
 
@@ -160,7 +137,7 @@ def init_encoders():
 
 
 def init_button_encoders(i2c):
-    expander = PCF8574(i2c, address=0x20)
+    expander = PCF8574(i2c, address=config.BUTTON_IO_EXPANDER_ADDRESS)
     buttons = []
 
     for encoder in ENCODERS:
@@ -181,38 +158,41 @@ def init_volumes_label():
 
 
 def main():
-    i2c = init_expander(scl=board.GP13, sda=board.GP12)
+    i2c = init_expander(
+        scl=config.IO_EXPANDER_PINS["SCL"], sda=config.IO_EXPANDER_PINS["SDA"]
+    )
 
-    encoders = init_encoders()
+    encoders = init_encoders(config.ROTARY_ENCODERS_NUM)
     encoder_buttons = init_button_encoders(i2c)
 
     keypad = ButtonMatrix(
         actions=KEYPADS,
-        expander=PCF8574(i2c, address=0x25),
-        rows=[board.GP14, board.GP15, board.GP17, board.GP24],
-        columns=[0, 1, 2, 3, 4],
+        expander=PCF8574(i2c, address=config.MATRIX_IO_EXPANDER_ADDRESS),
+        rows=config.MATRIX_ROW_PINS,
+        columns=config.MATRIX_COL_PINS,
     )
 
-    SCREEN.show_image("media/lize.bmp")
-
     labels = init_volumes_label()
+    # slideshow = display.Slideshow(SCREEN.images_group)
+    # gif = display.PlayGif("media/mon.gif", SCREEN.gif_group, SCREEN.display)
     SCREEN.show_screen()
 
     while True:
         for encoder in encoders:
-            enc = encoder.encoder_action()
+            turned = encoder.encoder_action()
 
-            if enc == True:
+            if turned and config.USE_DEEJ:
                 labels[DEEJ.current].text = DEEJ.display
 
         for button in encoder_buttons:
             button.button_action()
 
         keypad.matrix_scanning()
+        # slideshow.update()
+        # gif.update_gif()
 
         time.sleep(0.01)
 
 
 if __name__ == "__main__":
     main()
-    # check_i2c_address()
