@@ -15,7 +15,6 @@ from adafruit_pcf8574 import PCF8574
 from adafruit_hid.keycode import Keycode as key
 from rp2pio_dualincrementalencoder import DualIncrementalEncoder
 from adafruit_hid.consumer_control_code import ConsumerControlCode as cc_code
-from adafruit_display_text import label
 
 
 DEEJ = Deej(config.DEEJ_PROGRAMS)
@@ -73,28 +72,28 @@ ENCODERS = [
 ]
 
 KEYPADS = [
-    [
+    [  # Row 1
         (BiT.CUSTOM, lambda: DEEJ.cycle_programs(-1)),
         (BiT.MEDIA, cc_code.SCAN_PREVIOUS_TRACK),
         (BiT.MEDIA, cc_code.PLAY_PAUSE),
         (BiT.MEDIA, cc_code.SCAN_NEXT_TRACK),
         (BiT.CUSTOM, lambda: DEEJ.cycle_programs(+1)),
     ],
-    [
+    [  # Row 2
         (BiT.KEY, [key.F]),
         (BiT.KEY, [key.G]),
         (BiT.KEY, [key.H]),
         (BiT.KEY, [key.I]),
         (BiT.KEY, [key.J]),
     ],
-    [
+    [  # Row 3
         (BiT.KEY, [key.K]),
         (BiT.KEY, [key.L]),
         (BiT.KEY, [key.M]),
         (BiT.KEY, [key.N]),
         (BiT.KEY, [key.O]),
     ],
-    [
+    [  # Row 4
         (BiT.KEY, [key.P]),
         (BiT.KEY, [key.Q]),
         (BiT.KEY, [key.R]),
@@ -114,13 +113,21 @@ def init_expander(scl, sda):
 
 
 def init_encoders(encoders_num):
-
+    """This loop is for looping through encoders pin and .
+    So if there's 6 rotary encoders, encoders_num = 6
+    (0, 6 * 2, 4) mean we start from 0, and since each encoder have 2 pins, multiplied by 2.
+    DualIncrementalEncoder require 4 pins so we split it by 4
+    and it will append to dual_encoders as 3 object of DualIncrementalEncoder
+    """
     dual_encoders = []
     for i in range(0, encoders_num * 2, 4):
         pins = [getattr(board, f"GP{j}") for j in range(i, i + 4)]
         init_dual_encoder = DualIncrementalEncoder(*pins)
         dual_encoders.append(init_dual_encoder)
 
+    """ After we get DualIncrementalEncoders we need to get value of each encoder and
+    apply action of the encoders
+    """
     encoders = []
     for i in range(encoders_num):
         group = i // 2  # integer division groups every two items
@@ -129,7 +136,7 @@ def init_encoders(encoders_num):
             name=f"Encoder {i}",
             encoder=dual_encoders[group],
             index=local_index,
-            actions=ENCODERS[config.ROTARY_ENCODERS_ORDER[i] - 1]["actions"],
+            actions=ENCODERS[config.ROTARY_ENCODERS_PHYSICAL_ORDER[i] - 1]["actions"],
         )
         encoders.append(split_encoder)
 
@@ -172,8 +179,10 @@ def main():
         columns=config.MATRIX_COL_PINS,
     )
 
-    labels = init_volumes_label()
-    # slideshow = display.Slideshow(SCREEN.images_group)
+    if config.USE_DEEJ:
+        labels = init_volumes_label()
+
+    slideshow = display.Slideshow(SCREEN.images_group)
     # gif = display.PlayGif("media/mon.gif", SCREEN.gif_group, SCREEN.display)
     SCREEN.show_screen()
 
@@ -188,7 +197,7 @@ def main():
             button.button_action()
 
         keypad.matrix_scanning()
-        # slideshow.update()
+        slideshow.update()
         # gif.update_gif()
 
         time.sleep(0.01)

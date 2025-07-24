@@ -15,6 +15,10 @@ class Deej:
         self.display = self.refresh_display()
 
     def create_or_get_volumes(self):
+        """Create or get volume from csv file, so we can get latest volume instead of all volume return to default value.
+        (Not working since circuitpython? don't allow to write text file.)
+        """
+
         filename = "deej.csv"
         if filename not in os.listdir("/"):
             with open(filename, "w") as f:
@@ -37,9 +41,11 @@ class Deej:
         return max(min_val, min(val, max_val))
 
     def analog_value(self, value: int):
+        """Convert digital value to potentiometer analog value."""
         return round(value * MAX_ANALOG_VOLUME / MAX_DIGITAL_VOLUME)
 
     def send_to_serial(self):
+        """Send value to serial for Deej desktop program can read it."""
         analog_value = [self.analog_value(v) for v in self.volumes]
         volumes = map(str, analog_value)
         serialize = "|".join(volumes)
