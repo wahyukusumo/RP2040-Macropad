@@ -9,4 +9,4 @@ num_colors = 64
 img = Image.open("myimage.jpg")
 img = img.resize(size)
 newimg = img.convert(mode="P", colors=num_colors)
-newimg.save("myimage_for_cirpy.bmp")
+newimg.save("myimage.bmp")

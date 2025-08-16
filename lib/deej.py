@@ -11,7 +11,7 @@ class Deej:
         self.programs = programs  # Display name for program in list
         self.num_programs = len(programs)
         self.volumes = [DEFAULT_DIGITAL_VOLUME for i in self.programs]
-        self.current = 0
+        self.current_program_index = 0
         self.display = self.refresh_display()
 
     def create_or_get_volumes(self):
@@ -29,12 +29,14 @@ class Deej:
                 self.volumes = file.strip().split(",")
 
     def refresh_display(self):
-        return f"{self.volumes[self.current]}\n{self.programs[self.current]}"
+        return f"{self.volumes[self.current_program_index]}\n{self.programs[self.current_program_index]}"
 
     def cycle_programs(self, direction: int):
         # direction value is +1 or -1
-        self.current = (self.current + direction) % self.num_programs
-        # print(f"current = {self.current}")
+        self.current_program_index = (
+            self.current_program_index + direction
+        ) % self.num_programs
+        # print(f"current = {self.current_program_index}")
         self.display = self.refresh_display()
 
     def clamp(self, val, min_val=MIN_DIGITAL_VOLUME, max_val=MAX_DIGITAL_VOLUME):
@@ -53,7 +55,9 @@ class Deej:
 
     def change_volume(self, direction: int):
         # direction value is +2 or -2
-        program_volume = self.volumes[self.current]
-        self.volumes[self.current] = self.clamp(program_volume + direction)
+        program_volume = self.volumes[self.current_program_index]
+        self.volumes[self.current_program_index] = self.clamp(
+            program_volume + direction
+        )
         self.send_to_serial()
         self.display = self.refresh_display()
