@@ -1,0 +1,4 @@
+Plotted to 'C:\Users\yvma\Documents\KiCad\RP2040-Macropad\RP2040-Macropad.pdf'.
+
+Info: Done.
+Info: Done.
